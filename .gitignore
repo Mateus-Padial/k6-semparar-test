@@ -1,0 +1,10 @@
+node_modules/
+reports/*.json
+reports/*.html
+reports/*.txt
+.backups/
+
+.env
+.env.*
+!.env.example
+!.env.*.example

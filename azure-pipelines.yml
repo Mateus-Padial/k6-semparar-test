@@ -1,0 +1,237 @@
+trigger:
+  branches:
+    include:
+      - main
+      - master
+
+pr:
+  branches:
+    include:
+      - main
+      - master
+
+parameters:
+  - name: ambiente
+    displayName: Ambiente
+    type: string
+    default: hml
+    values:
+      - hml
+      - prd
+
+  - name: cenario
+    displayName: Cenário k6
+    type: string
+    default: fluxoCompleto
+    values:
+      - fluxoCompleto
+      - acumuloMotor
+      - creditoVoucher
+      - debitoVouchers
+      - voucherExpirado
+
+variables:
+  - name: K6_ENV
+    value: ${{ parameters.ambiente }}
+
+  - name: K6_SCRIPT
+    value: Scenarios/${{ parameters.cenario }}.js
+
+  - ${{ if eq(parameters.ambiente, 'hml') }}:
+      - group: k6-hml
+
+  - ${{ if eq(parameters.ambiente, 'prd') }}:
+      - group: k6-prd
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: performance_tests
+    displayName: Testes de performance k6
+    jobs:
+      - job: run_k6
+        displayName: Executar k6
+        timeoutInMinutes: 90
+        steps:
+          - checkout: self
+
+          - task: NodeTool@0
+            displayName: Instalar Node.js
+            inputs:
+              versionSpec: '20.x'
+
+          - script: |
+              set -euo pipefail
+
+              sudo apt-get update
+              sudo apt-get install -y ca-certificates curl gnupg
+
+              sudo mkdir -p /etc/apt/keyrings
+              curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/k6-archive-keyring.gpg
+              echo "deb [signed-by=/etc/apt/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list > /dev/null
+
+              sudo apt-get update
+              sudo apt-get install -y k6
+
+              k6 version
+            displayName: Instalar k6
+
+          - script: |
+              set -euo pipefail
+              npm ci
+              node --check scripts/run-k6.js
+            displayName: Instalar dependências e validar runner
+
+          - script: |
+              set -euo pipefail
+
+              ENV_FILE=".env.${K6_ENV}"
+              : > "${ENV_FILE}"
+
+              missing=0
+
+              write_var() {
+                name="$1"
+                value="${!name:-}"
+
+                if [ -z "${value}" ] || [ "${value}" = "\$(${name})" ]; then
+                  echo "Variável obrigatória não configurada no Azure DevOps: ${name}"
+                  missing=1
+                  return
+                fi
+
+                printf '%s=%s\n' "${name}" "${value}" >> "${ENV_FILE}"
+              }
+
+              write_var VERTEM_TOKEN_URL
+              write_var VERTEM_CLIENT_ID
+              write_var VERTEM_CLIENT_SECRET
+              write_var VERTEM_GRANT_TYPE
+              write_var PURCHASE_URL
+              write_var PURCHASE_ORCHESTRATOR_URL
+              write_var APIM_SUBSCRIPTION_KEY
+              write_var PARTICIPANT_ID
+              write_var MERCHANT_ID
+              write_var MERCHANT_TRANSACTION_ID
+              write_var CAMPAIGN_ID
+              write_var CAMPAIGN_ID_VOUCHER_1
+              write_var CAMPAIGN_ID_VOUCHER_2
+              write_var CAMPAIGN_ID_ABASTECIMENTO
+              write_var PRODUCT_ID
+              write_var PRODUCT_CODE
+              write_var PRODUCT_UNITARY_VALUE
+              write_var PRODUCT_QUANTITY
+              write_var PRODUCT_DESCRIPTION
+              write_var PRODUCT_ID_VOUCHER
+              write_var PRODUCT_CODE_VOUCHER
+              write_var PRODUCT_UNITARY_VALUE_VOUCHER
+              write_var PRODUCT_QUANTITY_VOUCHER
+              write_var PRODUCT_DESCRIPTION_VOUCHER
+              write_var PRODUCT_ID_ABASTECIMENTO
+              write_var PRODUCT_CODE_ABASTECIMENTO
+              write_var PRODUCT_UNITARY_VALUE_ABASTECIMENTO
+              write_var PRODUCT_QUANTITY_ABASTECIMENTO
+              write_var PRODUCT_DESCRIPTION_ABASTECIMENTO
+              write_var PAYMENT_TYPE
+              write_var PAYMENT_ENTRY_MODE
+              write_var PAYMENT_VALUE
+              write_var PAYMENT_VALUE_ABASTECIMENTO
+              write_var DESCRICAO_ORIGEM
+              write_var PLANO_CLIENTE
+              write_var PARTNER_TRANSACTION_ID
+              write_var TRANSACTION_BASE_NUMBER
+              write_var INVOICE_CODE
+              write_var ABERTO_TOKEN_URL
+              write_var ABERTO_CLIENT_ID
+              write_var ABERTO_CLIENT_SECRET
+              write_var ABERTO_SCOPE
+              write_var ABERTO_GRANT_TYPE
+              write_var ABERTO_CREDITS_EXPIRATION_URL
+              write_var ABERTO_APIM_SUBSCRIPTION_KEY
+              write_var ABERTO_WALLET_ID
+              write_var ABERTO_PARTICIPANT_IDENTIFIER
+              write_var ABERTO_MAX_DATE
+
+              if [ "${missing}" -ne 0 ]; then
+                echo "Falha ao gerar ${ENV_FILE}. Configure todas as variáveis no Variable Group correspondente."
+                exit 1
+              fi
+
+              echo "Arquivo ${ENV_FILE} gerado com sucesso sem exibir valores sensíveis."
+            displayName: Gerar arquivo de ambiente do k6
+            env:
+              VERTEM_TOKEN_URL: $(VERTEM_TOKEN_URL)
+              VERTEM_CLIENT_ID: $(VERTEM_CLIENT_ID)
+              VERTEM_CLIENT_SECRET: $(VERTEM_CLIENT_SECRET)
+              VERTEM_GRANT_TYPE: $(VERTEM_GRANT_TYPE)
+              PURCHASE_URL: $(PURCHASE_URL)
+              PURCHASE_ORCHESTRATOR_URL: $(PURCHASE_ORCHESTRATOR_URL)
+              APIM_SUBSCRIPTION_KEY: $(APIM_SUBSCRIPTION_KEY)
+              PARTICIPANT_ID: $(PARTICIPANT_ID)
+              MERCHANT_ID: $(MERCHANT_ID)
+              MERCHANT_TRANSACTION_ID: $(MERCHANT_TRANSACTION_ID)
+              CAMPAIGN_ID: $(CAMPAIGN_ID)
+              CAMPAIGN_ID_VOUCHER_1: $(CAMPAIGN_ID_VOUCHER_1)
+              CAMPAIGN_ID_VOUCHER_2: $(CAMPAIGN_ID_VOUCHER_2)
+              CAMPAIGN_ID_ABASTECIMENTO: $(CAMPAIGN_ID_ABASTECIMENTO)
+              PRODUCT_ID: $(PRODUCT_ID)
+              PRODUCT_CODE: $(PRODUCT_CODE)
+              PRODUCT_UNITARY_VALUE: $(PRODUCT_UNITARY_VALUE)
+              PRODUCT_QUANTITY: $(PRODUCT_QUANTITY)
+              PRODUCT_DESCRIPTION: $(PRODUCT_DESCRIPTION)
+              PRODUCT_ID_VOUCHER: $(PRODUCT_ID_VOUCHER)
+              PRODUCT_CODE_VOUCHER: $(PRODUCT_CODE_VOUCHER)
+              PRODUCT_UNITARY_VALUE_VOUCHER: $(PRODUCT_UNITARY_VALUE_VOUCHER)
+              PRODUCT_QUANTITY_VOUCHER: $(PRODUCT_QUANTITY_VOUCHER)
+              PRODUCT_DESCRIPTION_VOUCHER: $(PRODUCT_DESCRIPTION_VOUCHER)
+              PRODUCT_ID_ABASTECIMENTO: $(PRODUCT_ID_ABASTECIMENTO)
+              PRODUCT_CODE_ABASTECIMENTO: $(PRODUCT_CODE_ABASTECIMENTO)
+              PRODUCT_UNITARY_VALUE_ABASTECIMENTO: $(PRODUCT_UNITARY_VALUE_ABASTECIMENTO)
+              PRODUCT_QUANTITY_ABASTECIMENTO: $(PRODUCT_QUANTITY_ABASTECIMENTO)
+              PRODUCT_DESCRIPTION_ABASTECIMENTO: $(PRODUCT_DESCRIPTION_ABASTECIMENTO)
+              PAYMENT_TYPE: $(PAYMENT_TYPE)
+              PAYMENT_ENTRY_MODE: $(PAYMENT_ENTRY_MODE)
+              PAYMENT_VALUE: $(PAYMENT_VALUE)
+              PAYMENT_VALUE_ABASTECIMENTO: $(PAYMENT_VALUE_ABASTECIMENTO)
+              DESCRICAO_ORIGEM: $(DESCRICAO_ORIGEM)
+              PLANO_CLIENTE: $(PLANO_CLIENTE)
+              PARTNER_TRANSACTION_ID: $(PARTNER_TRANSACTION_ID)
+              TRANSACTION_BASE_NUMBER: $(TRANSACTION_BASE_NUMBER)
+              INVOICE_CODE: $(INVOICE_CODE)
+              ABERTO_TOKEN_URL: $(ABERTO_TOKEN_URL)
+              ABERTO_CLIENT_ID: $(ABERTO_CLIENT_ID)
+              ABERTO_CLIENT_SECRET: $(ABERTO_CLIENT_SECRET)
+              ABERTO_SCOPE: $(ABERTO_SCOPE)
+              ABERTO_GRANT_TYPE: $(ABERTO_GRANT_TYPE)
+              ABERTO_CREDITS_EXPIRATION_URL: $(ABERTO_CREDITS_EXPIRATION_URL)
+              ABERTO_APIM_SUBSCRIPTION_KEY: $(ABERTO_APIM_SUBSCRIPTION_KEY)
+              ABERTO_WALLET_ID: $(ABERTO_WALLET_ID)
+              ABERTO_PARTICIPANT_IDENTIFIER: $(ABERTO_PARTICIPANT_IDENTIFIER)
+              ABERTO_MAX_DATE: $(ABERTO_MAX_DATE)
+
+          - script: |
+              set -euo pipefail
+
+              mkdir -p reports
+
+              echo "Executando k6 no ambiente ${K6_ENV} com script ${K6_SCRIPT}"
+              node scripts/run-k6.js "${K6_ENV}" "${K6_SCRIPT}" --out json=reports/resultado.json --summary-export=reports/summary.json
+            displayName: Executar teste de performance
+
+          - script: |
+              set -uo pipefail
+
+              if [ ! -f reports/summary.json ]; then
+                echo "summary.json não encontrado; pulando geração do relatório."
+                exit 0
+              fi
+
+              node scripts/gerar-relatorio.js reports/summary.json reports/analise-rodada.md
+            displayName: Gerar análise da rodada
+            condition: always()
+
+          - publish: reports
+            artifact: k6-reports
+            displayName: Publicar relatórios k6
+            condition: always()

@@ -1,0 +1,26 @@
+{
+  "name": "teste-performace-semparar",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "npm run test:hml",
+    "test:hml": "node scripts/run-k6.js hml Scenarios/fluxoCompleto.js",
+    "test:prd": "node scripts/run-k6.js prd Scenarios/fluxoCompleto.js",
+    "test:hml:json": "node scripts/run-k6.js hml Scenarios/fluxoCompleto.js --summary-export=reports/summary.json",
+    "test:hml:full": "node scripts/run-k6.js hml Scenarios/fluxoCompleto.js --out json=reports/resultado.json",
+    "test:prd:full": "node scripts/run-k6.js prd Scenarios/fluxoCompleto.js --out json=reports/resultado.json",
+    "test:hml:acumuloMotor": "node scripts/run-k6.js hml Scenarios/acumuloMotor.js --out json=reports/resultado.json",
+    "test:hml:creditoVoucher": "node scripts/run-k6.js hml Scenarios/creditoVoucher.js --out json=reports/resultado.json",
+    "test:hml:debitoVouchers": "node scripts/run-k6.js hml Scenarios/debitoVouchers.js --out json=reports/resultado.json",
+    "test:hml:voucherExpirado": "node scripts/run-k6.js hml Scenarios/voucherExpirado.js --out json=reports/resultado.json",
+    "test:prd:acumuloMotor": "node scripts/run-k6.js prd Scenarios/acumuloMotor.js --out json=reports/resultado.json",
+    "test:prd:creditoVoucher": "node scripts/run-k6.js prd Scenarios/creditoVoucher.js --out json=reports/resultado.json",
+    "test:prd:debitoVouchers": "node scripts/run-k6.js prd Scenarios/debitoVouchers.js --out json=reports/resultado.json",
+    "test:prd:voucherExpirado": "node scripts/run-k6.js prd Scenarios/voucherExpirado.js --out json=reports/resultado.json",
+    "relatorio": "node scripts/gerar-relatorio.js",
+    "test:hml:report": "node scripts/run-k6.js hml Scenarios/fluxoCompleto.js --out json=reports/resultado.json --summary-export=reports/summary.json && node scripts/gerar-relatorio.js",
+    "test:prd:report": "node scripts/run-k6.js prd Scenarios/fluxoCompleto.js --out json=reports/resultado.json --summary-export=reports/summary.json && node scripts/gerar-relatorio.js"
+  },
+  "dependencies": {
+    "k6": "^0.0.0"
+  }
+}
